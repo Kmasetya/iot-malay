@@ -8,7 +8,7 @@
 #include <Adafruit_ADS1X15.h>
 #include <WebServer.h>
 #include "SPIFFS.h"
-//==apakah saya sudah bisa push ke github
+
 // ========== I2C ==========
 MAX30105 particleSensor;
 LiquidCrystal_I2C lcd(0x27, 20, 4);
@@ -103,8 +103,12 @@ void initSPIFFS();
 // ========== WiFi Connection ==========
 bool connectToSurroundingWiFi() {
   for (int attempt = 0; attempt < 5; attempt++) {
-    lcd.setCursor(0,2); lcd.print("Scanning WiFi    ");
-    lcd.setCursor(0,3); lcd.print("Attempt "); lcd.print(attempt+1); lcd.print("/5");
+    lcd.setCursor(0, 2);
+    lcd.print("Scanning WiFi    ");
+    lcd.setCursor(0, 3);
+    lcd.print("Attempt ");
+    lcd.print(attempt + 1);
+    lcd.print("/5");
     int n = WiFi.scanNetworks();
     for (int i = 0; i < n; i++) {
       if (WiFi.SSID(i) == STA_SSID) {
@@ -124,10 +128,16 @@ void startAPMode() {
   WiFi.mode(WIFI_AP);
   WiFi.softAP(AP_SSID, AP_PASSWORD);
   lcd.clear();
-  lcd.setCursor(0,0); lcd.print("AP Mode Active");
-  lcd.setCursor(0,1); lcd.print("Network: "); lcd.print(AP_SSID);
-  lcd.setCursor(0,2); lcd.print("IP: "); lcd.print(WiFi.softAPIP());
-  lcd.setCursor(0,3); lcd.print("No internet");
+  lcd.setCursor(0, 0);
+  lcd.print("AP Mode Active");
+  lcd.setCursor(0, 1);
+  lcd.print("Network: ");
+  lcd.print(AP_SSID);
+  lcd.setCursor(0, 2);
+  lcd.print("IP: ");
+  lcd.print(WiFi.softAPIP());
+  lcd.setCursor(0, 3);
+  lcd.print("No internet");
   delay(2000);
 }
 
@@ -142,7 +152,10 @@ void initSPIFFS() {
 
 void saveToLocalStorage(String data) {
   File file = SPIFFS.open("/data.txt", FILE_APPEND);
-  if (file) { file.println(data); file.close(); }
+  if (file) {
+    file.println(data);
+    file.close();
+  }
 }
 
 void uploadPendingData() {
@@ -162,7 +175,10 @@ void uploadPendingData() {
     }
   }
   file.close();
-  if (uploaded > 0) { file = SPIFFS.open("/data.txt", FILE_WRITE); file.close(); }
+  if (uploaded > 0) {
+    file = SPIFFS.open("/data.txt", FILE_WRITE);
+    file.close();
+  }
 }
 
 // ========== HTTP Server ==========
@@ -301,14 +317,33 @@ void setup() {
 }
 
 // ========== LED ==========
-void clearLEDs() { digitalWrite(LED_GREEN, LOW); digitalWrite(LED_YELLOW, LOW); digitalWrite(LED_RED, LOW); }
+void clearLEDs() {
+  digitalWrite(LED_GREEN, LOW);
+  digitalWrite(LED_YELLOW, LOW);
+  digitalWrite(LED_RED, LOW);
+}
+
 void setLED(float v, String t) {
   clearLEDs();
-  if (t == "spo2") { if (v >= 95) digitalWrite(LED_GREEN, HIGH); else if (v >= 90) digitalWrite(LED_YELLOW, HIGH); else digitalWrite(LED_RED, HIGH); }
-  else if (t == "grip") { if (v >= 40) digitalWrite(LED_GREEN, HIGH); else if (v >= 30) digitalWrite(LED_YELLOW, HIGH); else digitalWrite(LED_RED, HIGH); }
-  else if (t == "bp") { if (systolicBP < 120 && diastolicBP < 80) digitalWrite(LED_GREEN, HIGH);
-    else if ((systolicBP >= 120 && systolicBP < 140) || (diastolicBP >= 80 && diastolicBP < 90)) digitalWrite(LED_YELLOW, HIGH);
-    else digitalWrite(LED_RED, HIGH); }
+
+  if (t == "spo2") {
+    if (v >= 95) digitalWrite(LED_GREEN, HIGH);
+    else if (v >= 90) digitalWrite(LED_YELLOW, HIGH);
+    else digitalWrite(LED_RED, HIGH);
+  }
+  else if (t == "grip") {
+    if (v >= 40) digitalWrite(LED_GREEN, HIGH);
+    else if (v >= 30) digitalWrite(LED_YELLOW, HIGH);
+    else digitalWrite(LED_RED, HIGH);
+  }
+  else if (t == "bp") {
+    if (systolicBP < 120 && diastolicBP < 80)
+      digitalWrite(LED_GREEN, HIGH);
+    else if ((systolicBP >= 120 && systolicBP < 140) || (diastolicBP >= 80 && diastolicBP < 90))
+      digitalWrite(LED_YELLOW, HIGH);
+    else
+      digitalWrite(LED_RED, HIGH);
+  }
 }
 
 // ========== Menu Display (Fixed IP on bottom, two items, wrap-around) ==========
@@ -418,56 +453,139 @@ void handleMenuNavigation() {
 
 // ========== Heart Rate + SpO2 ==========
 void measureHeart() {
-  if (!max30102_ok) { lcd.clear(); lcd.print("Sensor Error!"); delay(RESULT_TIME); return; }
-  lcd.clear(); lcd.print("Put your fingertip"); lcd.setCursor(0,1); lcd.print("on the sensor");
+  if (!max30102_ok) {
+    lcd.clear();
+    lcd.print("Sensor Error!");
+    delay(RESULT_TIME);
+    return;
+  }
+
+  lcd.clear();
+  lcd.print("Put your fingertip");
+  lcd.setCursor(0, 1);
+  lcd.print("on the sensor");
   delay(2000);
-  bpmSum = 0; beatCount = 0; spo2Sum = 0; spo2Count = 0;
+
+  bpmSum = 0;
+  beatCount = 0;
+  spo2Sum = 0;
+  spo2Count = 0;
   unsigned long start = millis();
-  lcd.clear(); lcd.setCursor(0,0); lcd.print("HR & SpO2"); lcd.setCursor(0,1); lcd.print("Please wait 30s");
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("HR & SpO2");
+  lcd.setCursor(0, 1);
+  lcd.print("Please wait 30s");
+
   while (millis() - start < MEASURE_TIME) {
-    long ir = particleSensor.getIR(), red = particleSensor.getRed();
+    long ir = particleSensor.getIR();
+    long red = particleSensor.getRed();
     int rem = (MEASURE_TIME - (millis() - start)) / 1000;
-    lcd.setCursor(0,2); lcd.print(rem); lcd.print(" second left ");
+
+    lcd.setCursor(0, 2);
+    lcd.print(rem);
+    lcd.print(" second left ");
+
     if (checkForBeat(ir)) {
-      long delta = millis() - lastBeat; lastBeat = millis();
+      long delta = millis() - lastBeat;
+      lastBeat = millis();
       float bpm = 60 / (delta / 1000.0);
-      if (bpm > 40 && bpm < 180) { bpmSum += bpm; beatCount++; lcd.setCursor(0,3); lcd.print("BPM:"); lcd.print(bpm,0); }
+      if (bpm > 40 && bpm < 180) {
+        bpmSum += bpm;
+        beatCount++;
+        lcd.setCursor(0, 3);
+        lcd.print("BPM:");
+        lcd.print(bpm, 0);
+      }
     }
+
     if (ir > 0) {
       float spo2 = 110 - 25 * ((float)red / (float)ir);
-      if (spo2 > 80 && spo2 <= 100) { spo2Sum += spo2; spo2Count++; lcd.setCursor(10,3); lcd.print("SpO2:"); lcd.print(spo2,0); lcd.print("%"); }
+      if (spo2 > 80 && spo2 <= 100) {
+        spo2Sum += spo2;
+        spo2Count++;
+        lcd.setCursor(10, 3);
+        lcd.print("SpO2:");
+        lcd.print(spo2, 0);
+        lcd.print("%");
+      }
     }
     delay(20);
   }
+
   float avgBPM = (beatCount > 0) ? (bpmSum / beatCount) * 2 : 0;
   float avgSpO2 = (spo2Count > 0) ? spo2Sum / spo2Count : 0;
-  lcd.clear(); lcd.setCursor(0,0); lcd.print("Measurement done");
-  lcd.setCursor(0,1); lcd.print("BPM: "); lcd.print(avgBPM);
-  lcd.setCursor(0,2); lcd.print("SpO2: "); lcd.print(avgSpO2); lcd.print("%");
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Measurement done");
+  lcd.setCursor(0, 1);
+  lcd.print("BPM: ");
+  lcd.print(avgBPM);
+  lcd.setCursor(0, 2);
+  lcd.print("SpO2: ");
+  lcd.print(avgSpO2);
+  lcd.print("%");
+
   setLED(avgSpO2, "spo2");
-  uploadData(0,0,0,0, avgSpO2, avgBPM, 0);
-  delay(RESULT_TIME); clearLEDs();
+  uploadData(0, 0, 0, 0, avgSpO2, avgBPM, 0);
+  delay(RESULT_TIME);
+  clearLEDs();
 }
 
 // ========== Grip ==========
 void measureGrip() {
-  if (!hx711_ok) { lcd.clear(); lcd.print("Sensor Error!"); delay(RESULT_TIME); return; }
-  lcd.clear(); lcd.setCursor(0,0); lcd.print("Please use the"); lcd.setCursor(0,1); lcd.print("dynamometer");
-  lcd.setCursor(0,2); lcd.print("Grip to start"); delay(2000);
-  maxGripForce = 0; unsigned long start = millis();
-  lcd.clear(); lcd.setCursor(0,0); lcd.print("Grip Now!");
+  if (!hx711_ok) {
+    lcd.clear();
+    lcd.print("Sensor Error!");
+    delay(RESULT_TIME);
+    return;
+  }
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Please use the");
+  lcd.setCursor(0, 1);
+  lcd.print("dynamometer");
+  lcd.setCursor(0, 2);
+  lcd.print("Grip to start");
+  delay(2000);
+
+  maxGripForce = 0;
+  unsigned long start = millis();
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Grip Now!");
+
   while (millis() - start < 5000) {
-    float force = scale.get_units(5); if (force < 0) force = 0;
+    float force = scale.get_units(5);
+    if (force < 0) force = 0;
     if (force > maxGripForce) maxGripForce = force;
-    lcd.setCursor(0,1); lcd.print("Force: "); lcd.print(force,1); lcd.print(" kg   ");
-    lcd.setCursor(0,2); lcd.print("Max: "); lcd.print(maxGripForce,1); lcd.print(" kg   ");
+
+    lcd.setCursor(0, 1);
+    lcd.print("Force: ");
+    lcd.print(force, 1);
+    lcd.print(" kg   ");
+    lcd.setCursor(0, 2);
+    lcd.print("Max: ");
+    lcd.print(maxGripForce, 1);
+    lcd.print(" kg   ");
     delay(100);
   }
-  lcd.clear(); lcd.setCursor(0,0); lcd.print("Measurement done");
-  lcd.setCursor(0,1); lcd.print("Max Grip: "); lcd.print(maxGripForce,1); lcd.print(" kg");
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Measurement done");
+  lcd.setCursor(0, 1);
+  lcd.print("Max Grip: ");
+  lcd.print(maxGripForce, 1);
+  lcd.print(" kg");
+
   setLED(maxGripForce, "grip");
-  uploadData(0,0,0,0,0,0, maxGripForce);
-  delay(RESULT_TIME); clearLEDs();
+  uploadData(0, 0, 0, 0, 0, 0, maxGripForce);
+  delay(RESULT_TIME);
+  clearLEDs();
 }
 
 // ========== Blood Pressure ==========
@@ -477,69 +595,190 @@ float readPressureMPX() {
   float p = v * 85.7 - 2.0;
   return constrain(p < 0 ? 0 : p, 0, BP_MAX_SAFE);
 }
-void startPump() { digitalWrite(PUMP_PIN, HIGH); }
-void stopPump() { digitalWrite(PUMP_PIN, LOW); }
-void openValve() { digitalWrite(VALVE_PIN, HIGH); }
+
+void startPump()  { digitalWrite(PUMP_PIN, HIGH); }
+void stopPump()   { digitalWrite(PUMP_PIN, LOW); }
+void openValve()  { digitalWrite(VALVE_PIN, HIGH); }
 void closeValve() { digitalWrite(VALVE_PIN, LOW); }
+
 float detectOscillation(float p) {
-  static float prev = 0, peak = 0; static bool rising = false;
+  static float prev = 0, peak = 0;
+  static bool rising = false;
   float osc = 0;
-  if (p > prev + 0.5) { if (!rising) { rising = true; peak = p; } else if (p > peak) peak = p; }
-  else if (p < prev - 0.5) { if (rising) { rising = false; osc = peak - p; } }
-  prev = p; return osc;
+
+  if (p > prev + 0.5) {
+    if (!rising) {
+      rising = true;
+      peak = p;
+    } else if (p > peak) {
+      peak = p;
+    }
+  }
+  else if (p < prev - 0.5) {
+    if (rising) {
+      rising = false;
+      osc = peak - p;
+    }
+  }
+
+  prev = p;
+  return osc;
 }
+
 void calculateBloodPressure() {
-  if (oscillationCount < 5) { systolicBP = 120; diastolicBP = 80; meanBP = 93; return; }
+  if (oscillationCount < 5) {
+    systolicBP = 120;
+    diastolicBP = 80;
+    meanBP = 93;
+    return;
+  }
+
   maxOscillation = 0;
-  for (int i=0; i<oscillationCount; i++) if (oscillationBuffer[i] > maxOscillation) maxOscillation = oscillationBuffer[i];
-  for (int i=0; i<oscillationCount; i++) if (oscillationBuffer[i] >= maxOscillation * 0.52) { systolicBP = pressureBuffer[i]; break; }
-  for (int i=oscillationCount-1; i>=0; i--) if (oscillationBuffer[i] >= maxOscillation * 0.78) { diastolicBP = pressureBuffer[i]; break; }
-  for (int i=0; i<oscillationCount; i++) if (oscillationBuffer[i] >= maxOscillation * 0.95) { meanBP = pressureBuffer[i]; break; }
+  for (int i = 0; i < oscillationCount; i++) {
+    if (oscillationBuffer[i] > maxOscillation)
+      maxOscillation = oscillationBuffer[i];
+  }
+
+  for (int i = 0; i < oscillationCount; i++) {
+    if (oscillationBuffer[i] >= maxOscillation * 0.52) {
+      systolicBP = pressureBuffer[i];
+      break;
+    }
+  }
+
+  for (int i = oscillationCount - 1; i >= 0; i--) {
+    if (oscillationBuffer[i] >= maxOscillation * 0.78) {
+      diastolicBP = pressureBuffer[i];
+      break;
+    }
+  }
+
+  for (int i = 0; i < oscillationCount; i++) {
+    if (oscillationBuffer[i] >= maxOscillation * 0.95) {
+      meanBP = pressureBuffer[i];
+      break;
+    }
+  }
 }
 void measureBloodPressure() {
-  if (!ads1115_ok) { lcd.clear(); lcd.print("Sensor Error!"); delay(RESULT_TIME); return; }
-  lcd.clear(); lcd.setCursor(0,0); lcd.print("Please put on the");
-  lcd.setCursor(0,1); lcd.print("cuff above your"); lcd.setCursor(0,2); lcd.print("wrist");
-  lcd.setCursor(0,3); lcd.print("Press any button");
-  while(digitalRead(BTN_SELECT)==HIGH && digitalRead(BTN_UP)==HIGH && digitalRead(BTN_DOWN)==HIGH) delay(50);
-  bpState = BP_INFLATING; oscillationCount = 0;
-  closeValve(); startPump();
-  float p = 0; int lastPct = -1;
+  if (!ads1115_ok) {
+    lcd.clear();
+    lcd.print("Sensor Error!");
+    delay(RESULT_TIME);
+    return;
+  }
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Please put on the");
+  lcd.setCursor(0, 1);
+  lcd.print("cuff above your");
+  lcd.setCursor(0, 2);
+  lcd.print("wrist");
+  lcd.setCursor(0, 3);
+  lcd.print("Press any button");
+
+  while (digitalRead(BTN_SELECT) == HIGH &&
+         digitalRead(BTN_UP) == HIGH &&
+         digitalRead(BTN_DOWN) == HIGH) {
+    delay(50);
+  }
+
+  bpState = BP_INFLATING;
+  oscillationCount = 0;
+  closeValve();
+  startPump();
+
+  float p = 0;
+  int lastPct = -1;
+
   while (bpState == BP_INFLATING && p < BP_TARGET_INFLATE) {
     p = readPressureMPX();
     int pct = (int)((p / BP_TARGET_INFLATE) * 100);
-    if (pct != lastPct) { lcd.clear(); lcd.setCursor(0,0); lcd.print("Inflating: "); lcd.print(pct); lcd.print("%"); lastPct = pct; }
-    if (p >= BP_TARGET_INFLATE) { stopPump(); bpState = BP_MEASURING; }
-    if (p > BP_MAX_SAFE) { stopPump(); openValve(); lcd.print("OVER PRESSURE!"); delay(2000); return; }
+
+    if (pct != lastPct) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Inflating: ");
+      lcd.print(pct);
+      lcd.print("%");
+      lastPct = pct;
+    }
+
+    if (p >= BP_TARGET_INFLATE) {
+      stopPump();
+      bpState = BP_MEASURING;
+    }
+
+    if (p > BP_MAX_SAFE) {
+      stopPump();
+      openValve();
+      lcd.print("OVER PRESSURE!");
+      delay(2000);
+      return;
+    }
     delay(20);
   }
-  openValve(); unsigned long lastSample = 0; float lastOsc = 0;
+
+  openValve();
+  unsigned long lastSample = 0;
+  float lastOsc = 0;
+
   while (bpState == BP_MEASURING && p > 20) {
     if (millis() - lastSample >= BP_SAMPLE_RATE_MS) {
       p = readPressureMPX();
       float osc = detectOscillation(p);
+
       if (osc > 5 && osc != lastOsc) {
         lastOsc = osc;
-        if (oscillationCount < 100) { oscillationBuffer[oscillationCount] = osc; pressureBuffer[oscillationCount] = p; oscillationCount++; }
+        if (oscillationCount < 100) {
+          oscillationBuffer[oscillationCount] = osc;
+          pressureBuffer[oscillationCount] = p;
+          oscillationCount++;
+        }
         int pct = (int)(((BP_TARGET_INFLATE - p) / BP_TARGET_INFLATE) * 100);
         if (pct < 0) pct = 0;
-        lcd.setCursor(0,0); lcd.print("Processing: "); lcd.print(pct); lcd.print("%   ");
+        lcd.setCursor(0, 0);
+        lcd.print("Processing: ");
+        lcd.print(pct);
+        lcd.print("%   ");
       }
       lastSample = millis();
     }
     delay(5);
   }
-  bpState = BP_COMPLETE; openValve(); delay(1000); closeValve();
+
+  bpState = BP_COMPLETE;
+  openValve();
+  delay(1000);
+  closeValve();
   calculateBloodPressure();
-  lcd.clear(); lcd.setCursor(0,0); lcd.print("Please remove the"); lcd.setCursor(0,1); lcd.print("cuff");
-  lcd.setCursor(0,2); lcd.print("SYS: "); lcd.print(systolicBP,0); lcd.print(" DIA: "); lcd.print(diastolicBP,0);
-  setLED(0,"bp");
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Please remove the");
+  lcd.setCursor(0, 1);
+  lcd.print("cuff");
+  lcd.setCursor(0, 2);
+  lcd.print("SYS: ");
+  lcd.print(systolicBP, 0);
+  lcd.print(" DIA: ");
+  lcd.print(diastolicBP, 0);
+
+  setLED(0, "bp");
   uploadData(systolicBP, diastolicBP, meanBP, bpHeartRate, 0, 0, 0);
-  delay(RESULT_TIME); clearLEDs();
+  delay(RESULT_TIME);
+  clearLEDs();
 }
 
 // ========== All Measurements ==========
-void measureAll() { measureHeart(); delay(1000); measureGrip(); delay(1000); measureBloodPressure(); }
+void measureAll() {
+  measureHeart();
+  delay(1000);
+  measureGrip();
+  delay(1000);
+  measureBloodPressure();
+}
 
 // ========== Main Loop ==========
 void loop() {
