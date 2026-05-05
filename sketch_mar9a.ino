@@ -8,7 +8,8 @@
 #include <Adafruit_ADS1X15.h>
 #include <WebServer.h>
 #include "SPIFFS.h"
-//==hanya mencobaaa github blababaka
+//==hanya mencobaaa github blaabaka
+//wkhkwhfkwhfkhwkfhk
 // ========== I2C ==========
 MAX30105 particleSensor;
 LiquidCrystal_I2C lcd(0x27, 20, 4);
