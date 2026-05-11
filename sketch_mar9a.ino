@@ -438,7 +438,6 @@ void handleMenuNavigation() {
     lastBtnTime = millis();
   }
   else if (digitalRead(BTN_SELECT) == LOW) {
-    lastBtnTime = millis();
     measuring = true;
     switch (menuIndex) {
       case 0: measureHeart(); break;
@@ -448,6 +447,9 @@ void handleMenuNavigation() {
     }
     measuring = false;
     showMainMenu();  // return to menu after measurement
+    // Reset debounce AFTER measurement finishes so SELECT can't re-trigger immediately
+    delay(300);             // let the button physically release
+    lastBtnTime = millis(); // start debounce window fresh
   }
 }
 
