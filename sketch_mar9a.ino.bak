@@ -32,8 +32,8 @@ WebServer server(80);
 #define LED_RED      25
 
 // Blood pressure hardware - RELAYS (active‑LOW, matching test program)
-#define RELAY_PUMP   19
-#define RELAY_VALVE  18
+#define RELAY_PUMP   18
+#define RELAY_VALVE  19
 
 // Battery (not used)
 #define BATTERY_PIN  34
@@ -258,13 +258,6 @@ void setup() {
   analogSetAttenuation(ADC_11db);
   pinMode(BATTERY_PIN, INPUT);
   
-  // ---- RELAY PIN INITIALIZATION - ensure OFF at power-up ----
-  pinMode(RELAY_PUMP, OUTPUT);
-  pinMode(RELAY_VALVE, OUTPUT);
-  digitalWrite(RELAY_PUMP, HIGH);   // active-LOW: HIGH = OFF
-  digitalWrite(RELAY_VALVE, HIGH);
-  delay(100);                       // give time for the relay to settle (ADDED)
-  
   lcd.init(); lcd.backlight(); delay(50);
   lcd.clear(); lcd.print("Health Monitor"); lcd.setCursor(0,1); lcd.print("Initializing...");
   delay(1000);
@@ -273,6 +266,10 @@ void setup() {
   pinMode(BTN_DOWN, INPUT_PULLUP);
   pinMode(BTN_SELECT, INPUT_PULLUP);
   pinMode(LED_GREEN, OUTPUT); pinMode(LED_YELLOW, OUTPUT); pinMode(LED_RED, OUTPUT);
+  pinMode(RELAY_PUMP, OUTPUT); pinMode(RELAY_VALVE, OUTPUT);
+  // Active‑LOW: start with HIGH (OFF)
+  digitalWrite(RELAY_PUMP, HIGH);
+  digitalWrite(RELAY_VALVE, HIGH);
   clearLEDs();
   
   initSPIFFS();
@@ -595,46 +592,40 @@ void simulateBloodPressure() {
   selectPressed=false; while(!checkSelectButton()) delay(50); clearLEDs();
 }
 
-// ========== Grip (simulated in normal mode, fixed gender selection) ==========
+// ========== Grip (simulated in normal mode, with proper gender selection) ==========
 void measureGrip() {
   if (dangerMode) {
     simulateGrip();
     return;
   }
 
-  // ---------- Gender selection with cursor and Go back ----------
   int gender = 0;
-  int subMenuIndex = 0; // 0=Male, 1=Female, 2=Go back
+  int subMenuIndex = 0;
   lcd.clear();
   lcd.setCursor(0,0); lcd.print("Select Gender");
   
   while (gender == 0) {
-    // Draw menu
     lcd.setCursor(0,1); lcd.print(subMenuIndex == 0 ? "> Male" : "  Male");
     lcd.setCursor(0,2); lcd.print(subMenuIndex == 1 ? "> Female" : "  Female");
     lcd.setCursor(0,3); lcd.print(subMenuIndex == 2 ? "> Go back" : "  Go back");
     
-    // Handle buttons with proper debounce
-    static unsigned long lastMove = 0;
-    if (millis() - lastMove > 200) {
+    static unsigned long lastBtnTime = 0;
+    if (millis() - lastBtnTime > 200) {
       if (digitalRead(BTN_UP) == LOW) {
         subMenuIndex--;
         if (subMenuIndex < 0) subMenuIndex = 2;
-        lastMove = millis();
+        lastBtnTime = millis();
       }
       else if (digitalRead(BTN_DOWN) == LOW) {
         subMenuIndex++;
         if (subMenuIndex > 2) subMenuIndex = 0;
-        lastMove = millis();
+        lastBtnTime = millis();
       }
       else if (digitalRead(BTN_SELECT) == LOW) {
         if (subMenuIndex == 0) gender = 1;
         else if (subMenuIndex == 1) gender = 2;
-        else {
-          // Go back – return to main menu
-          return;
-        }
-        lastMove = millis();
+        else return;
+        lastBtnTime = millis();
       }
     }
     delay(20);
@@ -643,22 +634,19 @@ void measureGrip() {
   lcd.clear(); lcd.print(gender == 1 ? "Male selected" : "Female selected");
   delay(1000);
 
-  // Prepare for gripping
   lcd.clear();
   lcd.setCursor(0,0); lcd.print("Grip dynamometer");
   lcd.setCursor(0,1); lcd.print("Squeeze hard!");
   lcd.setCursor(0,2); lcd.print("Starting in 3s...");
   delay(3000);
 
-  // Generate random normal-range final force
   float finalForce;
   if (gender == 1) {
-    finalForce = random(308, 560) / 10.0;   // 30.8 – 55.9 kg
+    finalForce = random(308, 560) / 10.0;
   } else {
-    finalForce = random(168, 310) / 10.0;   // 16.8 – 31.0 kg
+    finalForce = random(168, 310) / 10.0;
   }
 
-  // 3‑second gripping simulation
   lcd.clear(); lcd.setCursor(0,0); lcd.print("GRIP NOW!");
   unsigned long start = millis();
   float currentForce = 0;
@@ -668,7 +656,6 @@ void measureGrip() {
     lcd.setCursor(0,2); lcd.print("Max:   "); lcd.print(finalForce,1); lcd.print(" kg   ");
     int rem = (3000 - (millis() - start)) / 1000;
     lcd.setCursor(0,3); lcd.print("Time: "); lcd.print(rem); lcd.print("s       ");
-    // Allow cancellation (double‑tap SELECT)
     if (checkSelectButton()) {
       unsigned long pt = millis();
       bool dt = false;
@@ -685,7 +672,6 @@ void measureGrip() {
   }
   maxGripForce = finalForce;
 
-  // Grade classification
   String grade;
   if (gender == 1) {
     if (maxGripForce < 30.8) grade = "Bad";
@@ -699,7 +685,6 @@ void measureGrip() {
     else grade = "Good";
   }
 
-  // Show result
   lcd.clear();
   lcd.setCursor(0,0); lcd.print("Done!");
   lcd.setCursor(0,1); lcd.print("Max Grip: "); lcd.print(maxGripForce,1); lcd.print(" kg");
@@ -719,13 +704,6 @@ void measureBloodPressure() {
     simulateBloodPressure();
     return;
   }
-  
-  // Ensure everything is off before starting
-  stopPump();
-  openValve();   // open valve to release any residual pressure
-  delay(200);
-  closeValve();  // then close for inflation
-  
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Put on the cuff");
@@ -741,9 +719,9 @@ void measureBloodPressure() {
 
   bool cancelled = false;
 
-  closeValve();   // ensure closed
+  closeValve();   // active‑LOW: LOW closes valve
   delay(200);
-  startPump();    // pump ON
+  startPump();    // active‑LOW: LOW turns pump ON
 
   // Inflation: 7 seconds
   lcd.clear();
@@ -775,7 +753,7 @@ void measureBloodPressure() {
   }
 
   if (!cancelled) {
-    stopPump();   // pump OFF
+    stopPump();   // active‑LOW: HIGH turns pump OFF
 
     // Hold: 3 seconds, valve stays closed
     lcd.clear();
@@ -809,9 +787,9 @@ void measureBloodPressure() {
 
   if (cancelled) {
     stopPump();
-    openValve();
+    openValve();   // open valve to release pressure (active‑LOW: HIGH opens valve)
     delay(500);
-    closeValve();  // optional
+    closeValve();  // close again (optional)
     lcd.clear();
     lcd.print("Cancelled");
     delay(1000);
@@ -822,11 +800,11 @@ void measureBloodPressure() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Deflating...");
-  openValve();     // valve opens
+  openValve();     // active‑LOW: HIGH opens valve
   delay(3000);
-  // Valve remains open – no closeValve()
+  // Valve remains open (no closeValve)
 
-  // Generate random normal BP values
+  // Random normal BP values
   systolicBP = random(110, 131);
   diastolicBP = random(70, 86);
   meanBP = diastolicBP + (systolicBP - diastolicBP) / 3;
@@ -848,17 +826,13 @@ void measureBloodPressure() {
     delay(50);
   }
   clearLEDs();
-  
-  // Ensure pump is off and valve is open after returning to menu
-  stopPump();
-  openValve();
 }
 
-// ========== Pump & Valve (active-LOW, NO contacts) ==========
-void startPump()  { digitalWrite(RELAY_PUMP, LOW); }    // relay ON, pump runs
-void stopPump()   { digitalWrite(RELAY_PUMP, HIGH); }   // relay OFF, pump stops
-void closeValve() { digitalWrite(RELAY_VALVE, LOW); }    // relay ON, solenoid closes valve
-void openValve()  { digitalWrite(RELAY_VALVE, HIGH); }   // relay OFF, solenoid opens valve
+// ========== Pump & Valve (active‑LOW) ==========
+void startPump()  { digitalWrite(RELAY_PUMP, LOW); }
+void stopPump()   { digitalWrite(RELAY_PUMP, HIGH); }
+void openValve()  { digitalWrite(RELAY_VALVE, HIGH); }   // valve open (NO type)
+void closeValve() { digitalWrite(RELAY_VALVE, LOW); }    // valve closed
 
 // ========== Dummy functions ==========
 float readPressureMPX() { return 0; }
